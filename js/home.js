@@ -12,40 +12,51 @@
      • إذا المتصفح منع التشغيل التلقائي، بيشتغل مع أول لمسة أو حركة سكرول. */
   let obs = null;
   FK.startHero = () => {
-    const v = document.querySelector(".hero-video"); if (!v) return;
+    // نفس عنصر الفيديو بيضل عايش بين الصفحات: برجوعك للرئيسية بيرجع لمكانه بدل ما ينعمل فيديو جديد
+    let v = FK._hv;
+    const slot = document.querySelector(".hero-slot");
+    if (slot && v) slot.replaceWith(v); else v = document.querySelector(".hero-video");
+    if (!v) return;
+    FK._hv = v;
     if (obs) { obs.disconnect(); obs = null; }
     const mobile = ASSETS.heroVideoMobile, desktop = [].concat(ASSETS.heroVideo || [])[0];
     const small = window.matchMedia ? window.matchMedia("(max-width: 760px)").matches : window.innerWidth <= 760;
-    const list = (small ? [mobile, desktop] : [desktop, mobile]).filter(Boolean);   // الأول المناسب للجهاز، والثاني احتياط
+    const list = (small ? [mobile, desktop] : [desktop, mobile]).filter(Boolean);
     if (!list.length) return;
 
     const play = () => { const p = v.play(); if (p && p.catch) p.catch(() => {}); };
     // وضع الفحص: افتح الموقع بإضافة ?debug=1 للرابط وبيظهر شريط أخضر بحالة الفيديو
     if (/[?&]debug/.test(location.search)) {
-      const d = document.createElement("div");
-      d.style.cssText = "position:fixed;z-index:99999;left:0;right:0;bottom:0;padding:8px;background:#000;color:#0f0;font:12px/1.4 monospace;direction:ltr;white-space:pre-wrap";
-      document.body.appendChild(d);
-      const dd = setInterval(() => {
-        if (!document.body.contains(v)) { d.remove(); return clearInterval(dd); }
-        d.textContent = "src: " + (v.currentSrc || "-") + "\npaused:" + v.paused + " t:" + v.currentTime.toFixed(1) + " ready:" + v.readyState + " net:" + v.networkState + " err:" + (v.error ? v.error.code : "-") + " w:" + window.innerWidth + "\nua:" + navigator.userAgent.slice(-70);
-      }, 500);
+      let d = document.getElementById("fk-debug");
+      if (!d) {
+        d = document.createElement("div"); d.id = "fk-debug";
+        d.style.cssText = "position:fixed;z-index:99999;left:0;right:0;bottom:0;padding:8px;background:#000;color:#0f0;font:12px/1.4 monospace;direction:ltr;white-space:pre-wrap";
+        document.body.appendChild(d);
+        setInterval(() => {
+          const x = FK._hv; if (!x) return;
+          d.textContent = "src: " + (x.currentSrc || "-") + "\ninDOM:" + document.body.contains(x) + " paused:" + x.paused + " t:" + x.currentTime.toFixed(1) + " ready:" + x.readyState + " net:" + x.networkState + " err:" + (x.error ? x.error.code : "-") + " w:" + window.innerWidth + "\nua:" + navigator.userAgent.slice(-70);
+        }, 500);
+      }
     }
-    setTimeout(() => {
+    const begin = () => {
       if (!document.body.contains(v)) return;
-      v.muted = true; v.defaultMuted = true; v.playsInline = true; v.autoplay = true;
-      ["muted", "playsinline", "webkit-playsinline", "disablepictureinpicture"].forEach((a) => v.setAttribute(a, ""));
-      let i = 0;
-      // الفيديو بيشتغل أول ما يوصل أول جزء منه (faststart + Range) وباقي الفيديو بيتحمّل وهو عم يشتغل
-      const load = () => { if (i > 0 || !v.getAttribute("src")) { v.src = list[i]; v.load(); } v.preload = "auto"; play(); };   // الفيديو أصلاً مركّب بالصفحة مباشرة وبيبدأ لحاله
-      v.addEventListener("error", () => { if (i < list.length - 1) { i++; load(); } });   // إذا فشل ملف بيجرّب الثاني
-      v.addEventListener("loadeddata", play);
-      v.addEventListener("canplay", play);
-      load();
-      // حارس: إذا وقف الفيديو لأي سبب وهو ظاهر بيرجّعه، وإذا علق بيعيد تحميله
+      if (!v._init) {
+        v._init = true;
+        v.muted = true; v.defaultMuted = true; v.playsInline = true; v.autoplay = true;
+        ["muted", "playsinline", "webkit-playsinline", "disablepictureinpicture"].forEach((a) => v.setAttribute(a, ""));
+        let i = 0;
+        const load = () => { if (i > 0 || !v.getAttribute("src")) { v.src = list[i]; v.load(); } v.preload = "auto"; play(); };
+        v.addEventListener("error", () => { if (i < list.length - 1) { i++; load(); } });   // إذا فشل ملف بيجرّب الثاني
+        v.addEventListener("loadeddata", play);
+        v.addEventListener("canplay", play);
+        load();
+      }
+      play();   // أول مرة، وكمان كل ما ترجع للرئيسية
+      // حارس واحد: إذا وقف الفيديو وهو ظاهر بيرجّعه، وإذا علق بيعيد تحميله
+      clearInterval(FK._dog);
       let last = -1, stuck = 0;
-      const dog = setInterval(() => {
-        if (!document.body.contains(v)) return clearInterval(dog);
-        if (document.hidden) return;
+      FK._dog = setInterval(() => {
+        if (!document.body.contains(v) || document.hidden) return;
         const r = v.getBoundingClientRect(); if (r.bottom <= 0 || r.top >= window.innerHeight) return;
         if (v.paused) { play(); return; }
         if (v.currentTime === last) { if (++stuck >= 3) { stuck = 0; v.load(); play(); } } else { stuck = 0; last = v.currentTime; }
@@ -56,11 +67,11 @@
       }
       // إذا المستخدم لمس الشاشة وكان الفيديو واقف: بيشتغل (بس مش شرط)
       const evs = ["touchend", "click", "pointerup", "touchstart", "scroll", "keydown"];
-      const kick = () => { if (!document.body.contains(v)) return off(); if (v.paused) play(); };
-      const off = () => evs.forEach((ev) => window.removeEventListener(ev, kick));
-      evs.forEach((ev) => window.addEventListener(ev, kick, { passive: true }));
-      v.addEventListener("playing", off, { once: true });
-    }, 50);
+      if (v._kick) evs.forEach((ev) => window.removeEventListener(ev, v._kick));
+      v._kick = () => { if (document.body.contains(v) && v.paused) play(); };
+      evs.forEach((ev) => window.addEventListener(ev, v._kick, { passive: true }));
+    };
+    if (v._init) begin(); else setTimeout(begin, 50);
   };
   if (!FK._visBound) {
     FK._visBound = true;
@@ -74,7 +85,7 @@
   FK.views.home = () => `
 <section class="hero" id="hero">
   <div class="hero-bg"></div>
-  <video class="hero-video" autoplay muted loop playsinline webkit-playsinline disablepictureinpicture preload="auto" src="${[].concat(ASSETS.heroVideo||[])[0]||""}"${ASSETS.heroPoster ? ` poster="${ASSETS.heroPoster}"` : ""}></video>
+  ${FK._hv ? '<i class="hero-slot"></i>' : `<video class="hero-video" autoplay muted loop playsinline webkit-playsinline disablepictureinpicture preload="auto" src="${[].concat(ASSETS.heroVideo||[])[0]||""}"${ASSETS.heroPoster ? ` poster="${ASSETS.heroPoster}"` : ""}></video>`}
   <div class="hero-shade"></div>
   <div class="wrap hero-content">
     <div class="hero-name"><h1 class="hero-logo"><span class="sr">${t("hero_first")} ${t("hero_last")}</span>
