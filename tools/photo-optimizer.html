@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>تجهيز صور السيارة · Car Photo Optimizer</title>
+<style>
+  body{margin:0;font-family:Tahoma,Arial,sans-serif;background:#0b0b0b;color:#eee;padding:20px;line-height:1.7}
+  .box{max-width:640px;margin:auto;background:#161616;border:1px solid #2a2a2a;padding:20px}
+  h1{margin:0 0 4px;font-size:20px;color:#ff1226} p{color:#aaa;margin:4px 0 14px;font-size:14px}
+  label{display:block;margin:12px 0 4px;font-weight:700}
+  input[type=number]{width:100%;padding:10px;background:#0b0b0b;color:#fff;border:1px solid #333;font-size:16px;box-sizing:border-box}
+  #drop{margin-top:14px;border:2px dashed #555;padding:30px;text-align:center;cursor:pointer}
+  #drop.on{border-color:#ff1226;background:#1d0b0d}
+  button{margin-top:14px;padding:12px 22px;background:#ff1226;color:#fff;border:0;font-size:16px;font-weight:700;cursor:pointer;width:100%}
+  button:disabled{opacity:.4;cursor:default}
+  #out{margin-top:14px;font-size:14px} code{display:block;background:#000;padding:10px;direction:ltr;text-align:left;color:#7CFC9A;margin-top:6px}
+  .thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.thumbs img{width:80px;height:60px;object-fit:cover}
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>تجهيز صور السيارة · Car Photo Optimizer</h1>
+  <p>اسحب صور السيارة (من الموبايل أو الكاميرا) وبتتصغّر لحجم خفيف بصيغة WebP وبتنزل بملف ZIP جاهز.<br>
+  Drop the car photos; they are resized to light WebP and downloaded as one ZIP.</p>
+  <label>رقم السيارة · Car number (مثال 574)</label>
+  <input type="number" id="num" placeholder="574" min="1">
+  <div id="drop">اضغط هون أو اسحب الصور · Click or drop photos<input type="file" id="files" accept="image/*" multiple hidden></div>
+  <div class="thumbs" id="thumbs"></div>
+  <button id="go" disabled>تجهيز وتنزيل ZIP · Build ZIP</button>
+  <div id="out"></div>
+</div>
+<script>
+const MAX = 1280, QUALITY = 0.8;
+let list = [];
+const $ = (s) => document.querySelector(s);
+const drop = $("#drop"), files = $("#files");
+drop.onclick = () => files.click();
+drop.ondragover = (e) => { e.preventDefault(); drop.classList.add("on"); };
+drop.ondragleave = () => drop.classList.remove("on");
+drop.ondrop = (e) => { e.preventDefault(); drop.classList.remove("on"); pick(e.dataTransfer.files); };
+files.onchange = () => pick(files.files);
+$("#num").oninput = check;
+function pick(fl) {
+  list = [...fl].filter((f) => f.type.startsWith("image/")).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  $("#thumbs").innerHTML = ""; list.forEach((f) => { const i = new Image(); i.src = URL.createObjectURL(f); $("#thumbs").append(i); });
+  check();
+}
+function check() { $("#go").disabled = !(list.length && +$("#num").value > 0); }
+
+const crcT = (() => { const t = []; for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc = (u8) => { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = crcT[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zip(entries) { // بدون ضغط (الصور مضغوطة أصلاً)
+  const enc = new TextEncoder(), parts = [], central = []; let off = 0;
+  entries.forEach(({ name, data }) => {
+    const n = enc.encode(name), c = crc(data);
+    const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+    lh.setUint32(14, c, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, n.length, true);
+    parts.push(lh, n, data);
+    const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+    ch.setUint32(16, c, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, n.length, true); ch.setUint32(42, off, true);
+    central.push(ch, n); off += 30 + n.length + data.length;
+  });
+  const csize = central.reduce((a, p) => a + (p.byteLength ?? p.length), 0);
+  const end = new DataView(new ArrayBuffer(22)); end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true); end.setUint32(12, csize, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...central, end], { type: "application/zip" });
+}
+async function toWebp(f) {
+  const bmp = await createImageBitmap(f, { imageOrientation: "from-image" });
+  const k = Math.min(1, MAX / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+  c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+  const blob = await new Promise((r) => c.toBlob(r, "image/webp", QUALITY));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+$("#go").onclick = async () => {
+  const id = +$("#num").value, btn = $("#go"); btn.disabled = true;
+  const entries = [];
+  for (let i = 0; i < list.length; i++) {
+    btn.textContent = `${i + 1} / ${list.length} ...`;
+    entries.push({ name: `${id}-${i + 1}.webp`, data: await toWebp(list[i]) });
+  }
+  const blob = zip(entries), a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = `car-${id}-photos.zip`; a.click();
+  const kb = Math.round(entries.reduce((s, e) => s + e.data.length, 0) / 1024);
+  $("#out").innerHTML = `تم ✔ — ${entries.length} صور، المجموع ${kb} KB<br>فك الضغط وحط الملفات بمجلد <b>img/cars/</b> ثم بـ cars.js اكتب:<code>id: ${id}, photos: ${entries.length},</code>`;
+  btn.textContent = "تجهيز وتنزيل ZIP · Build ZIP"; btn.disabled = false;
+};
+</script>
+</body>
+</html>

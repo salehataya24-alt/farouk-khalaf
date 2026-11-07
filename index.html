@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Farouk Khalaf Cars</title>
+<meta name="theme-color" content="#000000">
+<meta name="description" content="معرض فاروق خلف لبيع وشراء السيارات – Farouk Khalaf Cars">
+<style>html,body{background:#000;margin:0}</style>
+<link rel="preload" as="image" href="img/logos/logo-primary.webp" fetchpriority="high">
+<link rel="preload" as="image" href="img/hero-poster.webp" fetchpriority="high">
+<link rel="icon" type="image/webp" href="img/logos/logo-primary.webp">
+<link rel="apple-touch-icon" href="img/logos/logo-primary.webp">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="css/site.min.css?v=27">
+<script>
+/* الخطوط: بس خطوط اللغة الحالية (مش 8 عائلات دفعة وحدة)، وبشكل غير حاجب للعرض */
+(function () {
+  var B = "https://fonts.googleapis.com/css2?";
+  var SETS = {
+    ar: "family=Reem+Kufi:wght@400;700&family=Tajawal:wght@400;500;700;800&family=Lalezar&family=Rakkas&family=Bruno+Ace",
+    en: "family=Montserrat:wght@400;500;700;900&family=Bruno+Ace&family=Racing+Sans+One&family=Black+Ops+One"
+  };
+  var done = {};
+  window.loadFonts = function (l) {
+    l = l === "en" ? "en" : "ar";
+    if (done[l]) return; done[l] = 1;
+    var k = document.createElement("link");
+    k.rel = "stylesheet"; k.href = B + SETS[l] + "&display=swap";
+    document.head.appendChild(k);
+  };
+  var l = "ar"; try { l = localStorage.getItem("fk_lang") || "ar"; } catch (e) {}
+  window.loadFonts(l);
+})();
+</script>
+<script src="js/site.min.js?v=27" defer></script>
+</head>
+<body>
+<div class="curtain" id="curtain" aria-hidden="true"></div>
+
+<header class="hdr" id="hdr"></header>
+<main id="view"></main>
+<footer class="ftr" id="ftr"></footer>
+
+<!-- نافذة التفاصيل والسياسات -->
+<div class="modal" id="modal"><div id="sheetHost"></div></div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "farouk-khalaf-cars",
+  "private": true,
+  "scripts": {
+    "bundle": "node tools/build.mjs",
+    "media": "node tools/optimize-media.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "sharp": "^0.33.0"
+  }
+}
