@@ -36,7 +36,7 @@
       ["muted", "playsinline", "webkit-playsinline", "disablepictureinpicture"].forEach((a) => v.setAttribute(a, ""));
       let i = 0;
       // الفيديو بيشتغل أول ما يوصل أول جزء منه (faststart + Range) وباقي الفيديو بيتحمّل وهو عم يشتغل
-      const load = () => { v.src = list[i]; v.preload = "auto"; v.load(); play(); };
+      const load = () => { if (i > 0 || !v.getAttribute("src")) { v.src = list[i]; v.load(); } v.preload = "auto"; play(); };   // الفيديو أصلاً مركّب بالصفحة مباشرة وبيبدأ لحاله
       v.addEventListener("error", () => { if (i < list.length - 1) { i++; load(); } });   // إذا فشل ملف بيجرّب الثاني
       v.addEventListener("loadeddata", play);
       v.addEventListener("canplay", play);
@@ -74,7 +74,7 @@
   FK.views.home = () => `
 <section class="hero" id="hero">
   <div class="hero-bg"></div>
-  <video class="hero-video" autoplay muted loop playsinline preload="none"${ASSETS.heroPoster ? ` poster="${ASSETS.heroPoster}"` : ""}></video>
+  <video class="hero-video" autoplay muted loop playsinline webkit-playsinline disablepictureinpicture preload="auto" src="${[].concat(ASSETS.heroVideo||[])[0]||""}"${ASSETS.heroPoster ? ` poster="${ASSETS.heroPoster}"` : ""}></video>
   <div class="hero-shade"></div>
   <div class="wrap hero-content">
     <div class="hero-name"><h1 class="hero-logo"><span class="sr">${t("hero_first")} ${t("hero_last")}</span>

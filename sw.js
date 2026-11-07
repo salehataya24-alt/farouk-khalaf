@@ -7,7 +7,7 @@
    • الفيديو: ما بنكاشه أبداً (ملفات كبيرة وطلبات Range) — المتصفح بيتكفّل فيه
    غيّر رقم VERSION عند كل تحديث كبير.
    ===================================================================== */
-const VERSION = "fk-v27";
+const VERSION = "fk-v28";
 const STATIC = VERSION + "-static";
 const IMAGES = VERSION + "-images";
 const FONTS = VERSION + "-fonts";
@@ -16,8 +16,8 @@ const MAX_IMAGES = 80;
 const CORE = [
   "./",
   "index.html",
-  "css/site.min.css?v=27",
-  "js/site.min.js?v=27",
+  "css/site.min.css?v=28",
+  "js/site.min.js?v=28",
   "img/logos/logo-primary.webp",
   "img/hero-poster.webp",
 ];
